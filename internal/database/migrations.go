@@ -1557,4 +1557,26 @@ var migrations = [...]func(tx *sql.Tx) error{
 		`)
 		return err
 	},
+	func(tx *sql.Tx) (err error) {
+		_, err = tx.Exec(`
+			CREATE TABLE workspace_outbox (
+				id BIGSERIAL PRIMARY KEY,
+				user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				entry_id bigint NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+				status text NOT NULL DEFAULT 'pending',
+				attempts integer NOT NULL DEFAULT 0,
+				next_attempt_at timestamp with time zone NOT NULL DEFAULT now(),
+				lease_owner text NOT NULL DEFAULT '',
+				lease_expires_at timestamp with time zone,
+				last_error text NOT NULL DEFAULT '',
+				created_at timestamp with time zone NOT NULL DEFAULT now(),
+				delivered_at timestamp with time zone,
+				UNIQUE (entry_id)
+			);
+
+			CREATE INDEX workspace_outbox_pending_idx
+				ON workspace_outbox (status, next_attempt_at, id);
+		`)
+		return err
+	},
 }

@@ -65,6 +65,7 @@ func (e *Engine) ParseTemplates() {
 		"unread_entries.html":      {"item_meta.html", "layout.html", "pagination.html"},
 		"users.html":               {"layout.html", "settings_menu.html"},
 		"webauthn_rename.html":     {"layout.html"},
+		"workspace.html":           {"layout.html"},
 	}
 
 	for name, dependencies := range templates {

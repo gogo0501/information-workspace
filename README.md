@@ -1,6 +1,31 @@
 Miniflux 2
 ==========
 
+## Information Workspace
+
+This fork adds a small information workspace on top of Miniflux. The existing
+RSS/Atom/JSON Feed discovery, conditional HTTP fetching, PostgreSQL full-text
+search, and authenticated API remain the ingestion baseline.
+
+The added workflow is:
+
+```text
+feed refresh -> PostgreSQL entry transaction -> durable workspace outbox
+                                      -> notifier worker -> optional webhook
+```
+
+The workspace page is available at `/workspace` after login. The authenticated
+API exposes:
+
+- `GET /v1/workspace/entries?q=...` for grounded material search
+- `POST /v1/workspace/agent` with `{ "question": "..." }` for evidence-based answers
+- `GET /v1/workspace/events` for SSE updates
+
+The Agent endpoint is intentionally conservative in the first version: it
+answers only from PostgreSQL full-text results and refuses when no evidence is
+available. Configure a Feed Webhook URL to let the durable notifier deliver
+new-entry JSON notifications. No Redis or external message queue is required.
+
 Miniflux is a minimalist and opinionated feed reader.
 It's simple, fast, lightweight and super easy to install.
 

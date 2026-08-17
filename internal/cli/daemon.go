@@ -18,6 +18,7 @@ import (
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/systemd"
 	"miniflux.app/v2/internal/worker"
+	"miniflux.app/v2/internal/workspace"
 )
 
 func startDaemon(store *storage.Storage) {
@@ -31,6 +32,9 @@ func startDaemon(store *storage.Storage) {
 	signal.Notify(reload, syscall.SIGHUP)
 
 	pool := worker.NewPool(store, config.Opts.WorkerPoolSize())
+	notifierShutdown := make(chan struct{})
+	notifier := workspace.NewNotifier(store, "workspace-notifier")
+	go notifier.Run(notifierShutdown)
 
 	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
 		runScheduler(store, pool)
@@ -82,6 +86,7 @@ func startDaemon(store *storage.Storage) {
 		select {
 		case <-stop:
 			slog.Debug("Shutting down the process")
+			close(notifierShutdown)
 			cancelMetrics()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()

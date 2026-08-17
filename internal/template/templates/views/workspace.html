@@ -1,0 +1,47 @@
+{{ define "title" }}资料工作台{{ end }}
+
+{{ define "page_header" }}
+<section class="page-header" aria-labelledby="workspace-title">
+    <h1 id="workspace-title">资料工作台</h1>
+    <p>统一查看订阅资料，并基于已入库内容检索。</p>
+</section>
+{{ end }}
+
+{{ define "content" }}
+<section class="workspace-panel">
+    <form method="get" action="{{ routePath "/workspace" }}" class="search-form">
+        <label for="workspace-query">资料检索</label>
+        <div class="search-input-row">
+            <input id="workspace-query" type="search" name="q" value="{{ .workspaceQuery }}" placeholder="搜索已入库资料">
+            <button class="button button-primary" type="submit">搜索</button>
+        </div>
+    </form>
+
+    <form method="get" action="{{ routePath "/workspace" }}" class="search-form">
+        <label for="workspace-ask">Agent 问答</label>
+        <div class="search-input-row">
+            <input id="workspace-ask" type="search" name="ask" value="{{ .workspaceAsk }}" placeholder="例如：最近有哪些 Go 资料？">
+            <button class="button button-primary" type="submit">提问</button>
+        </div>
+    </form>
+
+    {{ if .workspaceAnswer }}
+    <div class="alert alert-info" role="status"><pre>{{ .workspaceAnswer }}</pre></div>
+    {{ end }}
+
+    <div class="items">
+        {{ range .workspaceDocuments }}
+        <article class="item entry-item">
+            <header class="item-header">
+                <h2 class="item-title"><a href="{{ .URL }}" target="_blank" rel="noreferrer">{{ .Title }}</a></h2>
+                <span class="category">{{ .Feed }}</span>
+            </header>
+            <p>{{ .Snippet }}</p>
+            <small>{{ .Published.Format "2006-01-02 15:04" }}</small>
+        </article>
+        {{ else }}
+        <p class="alert alert-info">暂时没有可展示的资料。</p>
+        {{ end }}
+    </div>
+</section>
+{{ end }}
