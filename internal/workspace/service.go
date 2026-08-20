@@ -12,12 +12,13 @@ import (
 )
 
 type Document struct {
-	ID        int64     `json:"id"`
-	Title     string    `json:"title"`
-	URL       string    `json:"url"`
-	Feed      string    `json:"feed"`
-	Published time.Time `json:"published_at"`
-	Snippet   string    `json:"snippet"`
+	ID        int64          `json:"id"`
+	Title     string         `json:"title"`
+	URL       string         `json:"url"`
+	Feed      string         `json:"feed"`
+	Published time.Time      `json:"published_at"`
+	Snippet   string         `json:"snippet"`
+	Insight   map[string]any `json:"insight,omitempty"`
 }
 
 type Answer struct {
@@ -35,26 +36,15 @@ func (s *Service) Search(userID int64, query string, limit int) ([]Document, err
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	builder := s.store.NewEntryQueryBuilder(userID).
-		WithLimit(limit)
-	if strings.TrimSpace(query) != "" {
-		builder = builder.WithSearchQuery(query)
-	} else {
-		builder = builder.WithSorting("published_at", "DESC")
-	}
-	entries, err := builder.GetEntries()
+	entries, err := s.store.WorkspaceDocuments(userID, strings.TrimSpace(query), limit)
 	if err != nil {
 		return nil, err
 	}
 	documents := make([]Document, 0, len(entries))
 	for _, entry := range entries {
-		feedTitle := ""
-		if entry.Feed != nil {
-			feedTitle = entry.Feed.Title
-		}
 		documents = append(documents, Document{
-			ID: entry.ID, Title: entry.Title, URL: entry.URL, Feed: feedTitle,
-			Published: entry.Date, Snippet: snippet(entry.Content, 240),
+			ID: entry.ID, Title: entry.Title, URL: entry.URL, Feed: entry.Feed,
+			Published: entry.Published, Snippet: snippet(entry.Snippet, 240), Insight: entry.Insight,
 		})
 	}
 	return documents, nil

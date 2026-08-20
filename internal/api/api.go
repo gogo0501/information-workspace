@@ -61,6 +61,8 @@ func NewHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 	mux.HandleFunc("GET /v1/workspace/entries", handler.workspaceEntriesHandler)
 	mux.HandleFunc("POST /v1/workspace/agent", handler.workspaceAgentHandler)
 	mux.HandleFunc("GET /v1/workspace/events", handler.workspaceEventsHandler)
+	mux.HandleFunc("POST /v1/workspace/sources", handler.createWorkspaceSourceHandler)
+	mux.HandleFunc("DELETE /v1/workspace/sources/{sourceID}/subscription", handler.deleteWorkspaceSubscriptionHandler)
 	mux.HandleFunc("PUT /v1/entries/{entryID}", handler.updateEntryHandler)
 	mux.HandleFunc("PUT /v1/entries/{entryID}/bookmark", handler.toggleStarredHandler)
 	mux.HandleFunc("PUT /v1/entries/{entryID}/star", handler.toggleStarredHandler)

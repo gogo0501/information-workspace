@@ -345,7 +345,7 @@ func (s *Storage) RefreshFeedEntries(userID, feedID int64, entries model.Entries
 			case errors.Is(err, ErrEntryTombstoned):
 				err = nil
 			case err == nil:
-				err = s.createWorkspaceOutbox(tx, entry)
+				err = s.CreateAgentTask(tx, entry)
 				if err != nil {
 					if rollbackErr := tx.Rollback(); rollbackErr != nil {
 						return nil, fmt.Errorf(`store: unable to rollback transaction: %v (rolled back due to: %v)`, rollbackErr, err)

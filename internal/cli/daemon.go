@@ -5,6 +5,7 @@ package cli // import "miniflux.app/v2/internal/cli"
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -32,9 +33,14 @@ func startDaemon(store *storage.Storage) {
 	signal.Notify(reload, syscall.SIGHUP)
 
 	pool := worker.NewPool(store, config.Opts.WorkerPoolSize())
-	notifierShutdown := make(chan struct{})
-	notifier := workspace.NewNotifier(store, "workspace-notifier")
-	go notifier.Run(notifierShutdown)
+	workspaceShutdown := make(chan struct{})
+	workerPrefix := fmt.Sprintf("workspace-%d", os.Getpid())
+	go workspace.NewScheduler(store).Run(workspaceShutdown)
+	for i := range 2 {
+		go workspace.NewIngestWorker(store, fmt.Sprintf("%s-ingest-%d", workerPrefix, i)).Run(workspaceShutdown)
+	}
+	go workspace.NewAnalysisWorker(store, workerPrefix+"-analysis").Run(workspaceShutdown)
+	go workspace.NewNotificationWorker(store, workerPrefix+"-notification").Run(workspaceShutdown)
 
 	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
 		runScheduler(store, pool)
@@ -86,7 +92,7 @@ func startDaemon(store *storage.Storage) {
 		select {
 		case <-stop:
 			slog.Debug("Shutting down the process")
-			close(notifierShutdown)
+			close(workspaceShutdown)
 			cancelMetrics()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()

@@ -1579,4 +1579,102 @@ var migrations = [...]func(tx *sql.Tx) error{
 		`)
 		return err
 	},
+	func(tx *sql.Tx) (err error) {
+		_, err = tx.Exec(`
+			ALTER TABLE entries
+				ADD COLUMN insight jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+			CREATE TABLE workspace_sources (
+				id BIGSERIAL PRIMARY KEY,
+				canonical_url text NOT NULL UNIQUE,
+				feed_url text NOT NULL UNIQUE,
+				feed_id bigint NOT NULL UNIQUE REFERENCES feeds(id) ON DELETE RESTRICT,
+				title text NOT NULL DEFAULT '',
+				site_url text NOT NULL DEFAULT '',
+				discovery text NOT NULL DEFAULT 'direct',
+				source_type text NOT NULL DEFAULT 'feed',
+				enabled boolean NOT NULL DEFAULT true,
+				refresh_interval_seconds integer NOT NULL DEFAULT 1800,
+				next_check_at timestamp with time zone NOT NULL DEFAULT now(),
+				last_error text NOT NULL DEFAULT '',
+				created_at timestamp with time zone NOT NULL DEFAULT now(),
+				updated_at timestamp with time zone NOT NULL DEFAULT now()
+			);
+
+			CREATE TABLE workspace_subscriptions (
+				user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				source_id bigint NOT NULL REFERENCES workspace_sources(id) ON DELETE CASCADE,
+				enabled boolean NOT NULL DEFAULT true,
+				notification_enabled boolean NOT NULL DEFAULT false,
+				channel text NOT NULL DEFAULT '',
+				webhook_url text NOT NULL DEFAULT '',
+				ntfy_topic text NOT NULL DEFAULT '',
+				created_at timestamp with time zone NOT NULL DEFAULT now(),
+				updated_at timestamp with time zone NOT NULL DEFAULT now(),
+				PRIMARY KEY (user_id, source_id)
+			);
+
+			CREATE TABLE feed_refresh_jobs (
+				id BIGSERIAL PRIMARY KEY,
+				source_id bigint NOT NULL REFERENCES workspace_sources(id) ON DELETE CASCADE,
+				status text NOT NULL DEFAULT 'pending',
+				attempt integer NOT NULL DEFAULT 0,
+				next_run_at timestamp with time zone NOT NULL DEFAULT now(),
+				lease_owner text NOT NULL DEFAULT '',
+				lease_expires_at timestamp with time zone,
+				started_at timestamp with time zone,
+				finished_at timestamp with time zone,
+				last_error text NOT NULL DEFAULT '',
+				created_at timestamp with time zone NOT NULL DEFAULT now(),
+				CHECK (status IN ('pending', 'running', 'retry', 'completed', 'failed'))
+			);
+
+			CREATE UNIQUE INDEX feed_refresh_jobs_active_idx
+				ON feed_refresh_jobs (source_id)
+				WHERE status IN ('pending', 'running', 'retry');
+			CREATE INDEX feed_refresh_jobs_claim_idx
+				ON feed_refresh_jobs (status, next_run_at, id);
+
+			CREATE TABLE agent_tasks (
+				id BIGSERIAL PRIMARY KEY,
+				entry_id bigint NOT NULL UNIQUE REFERENCES entries(id) ON DELETE CASCADE,
+				source_id bigint NOT NULL REFERENCES workspace_sources(id) ON DELETE CASCADE,
+				status text NOT NULL DEFAULT 'pending',
+				attempt integer NOT NULL DEFAULT 0,
+				next_run_at timestamp with time zone NOT NULL DEFAULT now(),
+				lease_owner text NOT NULL DEFAULT '',
+				lease_expires_at timestamp with time zone,
+				last_error text NOT NULL DEFAULT '',
+				created_at timestamp with time zone NOT NULL DEFAULT now(),
+				completed_at timestamp with time zone,
+				CHECK (status IN ('pending', 'running', 'retry', 'completed', 'failed'))
+			);
+			CREATE INDEX agent_tasks_claim_idx ON agent_tasks (status, next_run_at, id);
+
+			CREATE TABLE notification_outbox (
+				id BIGSERIAL PRIMARY KEY,
+				user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				entry_id bigint NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+				source_id bigint NOT NULL REFERENCES workspace_sources(id) ON DELETE CASCADE,
+				channel text NOT NULL,
+				target text NOT NULL,
+				payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+				status text NOT NULL DEFAULT 'pending',
+				attempt integer NOT NULL DEFAULT 0,
+				next_run_at timestamp with time zone NOT NULL DEFAULT now(),
+				lease_owner text NOT NULL DEFAULT '',
+				lease_expires_at timestamp with time zone,
+				last_error text NOT NULL DEFAULT '',
+				created_at timestamp with time zone NOT NULL DEFAULT now(),
+				delivered_at timestamp with time zone,
+				UNIQUE (user_id, entry_id, channel, target),
+				CHECK (status IN ('pending', 'running', 'retry', 'delivered', 'failed'))
+			);
+			CREATE INDEX notification_outbox_claim_idx
+				ON notification_outbox (status, next_run_at, id);
+
+			DROP TABLE workspace_outbox;
+		`)
+		return err
+	},
 }

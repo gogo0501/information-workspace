@@ -39,7 +39,7 @@ func (h *handler) workspaceAgentHandler(w http.ResponseWriter, r *http.Request) 
 		response.JSONBadRequest(w, r, err)
 		return
 	}
-	answer, err := h.workspaceService().Ask(request.UserID(r), input.Question)
+	answer, err := workspace.NewRouterChain(h.store).Run(r.Context(), request.UserID(r), input.Question)
 	if err != nil {
 		response.JSONBadRequest(w, r, err)
 		return

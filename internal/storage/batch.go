@@ -24,7 +24,8 @@ type batchBuilder struct {
 
 func (s *Storage) NewBatchBuilder() *batchBuilder {
 	return &batchBuilder{
-		db: s.db,
+		db:         s.db,
+		conditions: []string{"NOT EXISTS (SELECT 1 FROM workspace_sources ws WHERE ws.feed_id = feeds.id)"},
 	}
 }
 
